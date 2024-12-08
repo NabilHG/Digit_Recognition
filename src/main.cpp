@@ -8,7 +8,11 @@ using namespace std;
 
 
 int main() {
+
     auto dataset = mnist::read_dataset<std::vector, std::vector, uint8_t, uint8_t>("/home/digit_recognition/data");
+    
+    // Normalize all the images in the data set to a zero mean and unit variance.
+    mnist::normalize_dataset(dataset);
 
     std::cout << "Number of training images: " << dataset.training_images.size() << '\n';
     std::cout << "Number of test images: " << dataset.test_images.size() << '\n';
