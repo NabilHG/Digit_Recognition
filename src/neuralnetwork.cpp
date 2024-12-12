@@ -77,7 +77,7 @@ class Network{
                 this->weights.push_back(weight_matrix); // Add the weight matrix for this layer connection
                 // Initialize bias vector for the next layer
                 std::vector<double> bias_vector(next_layer_size, 0.0); // Biases initialized to 0.0 for simplicity
-                biases.push_back(bias_vector); // Add biases for this layer
+                this->biases.push_back(bias_vector); // Add biases for this layer
             }
             // std::cout << this->get_weights()[0][0][0] << '\n';
             // std::cout << '\n';
@@ -100,8 +100,41 @@ class Network{
                 std::cout << '\n';
             }
         }
+        
+        std::vector<std::vector<double>> transpose(const std::vector<std::vector<double>>& matrix) {
+            int rows = matrix.size();
+            int cols = matrix[0].size();
+            // create the transposed matrix with dimensions cols x rows
+            std::vector<std::vector<double>> t_matrix(cols, std::vector<double>(rows));
 
+            for (int i = 0; i < rows; ++i) {
+                for (int j = 0; j < cols; ++j) {
+                    t_matrix[j][i] = matrix[i][j];
+                }
+            }
+            return t_matrix;
+        }
+
+        // in this function we are going to propagate the values from the input layer to the output layer
+        //multiplying each value for the correspongind weight and the adding the bias 
+        //to finally call the activation function (relu) and repeat for the next layer
         void forward(){
+            //possible approach?
+            //for each column of the weights matrix compute value*weight + bias, N1*w0,1+N2*w0,1+...+Nnw0,n + B (bias)
+            //then call RelU(val) on the corresponding neuron of the column n in the weight matrix (n=0, first neuron of current_layer +1)     
+
+
+            for(int i = 0; i < this->weights.size(); i++){
+                // transpose to iterate directly into weights of neuron of the next layer
+                std::vector<std::vector<double>> t_matrix = transpose(this->weights[i]); 
+                for(int j = 0; j < t_matrix.size(); j++){
+                    for(int z = 0; z < t_matrix[j].size(); z++){
+                        std::cout << t_matrix[j][z] << " ";
+                    }
+                    std::cout << '\n';
+                }
+                std::cout << '\n';
+            }
 
         }
 
