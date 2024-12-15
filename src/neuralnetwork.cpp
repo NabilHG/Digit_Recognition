@@ -16,8 +16,8 @@ class Neuron{
         }   
     
         // ReLu (Rectified Linear Unit) for forward pass
-        void relu() {
-            value = std::max(0.0, value);
+        void relu(double &val) {
+            this->value = std::max(0.0, val);
         }
 
         // derivate of Relu for backprop
@@ -64,7 +64,7 @@ class Network{
             srand(static_cast<unsigned>(time(0)));
 
             // Initialize weights and biases for each layer connection
-            for (size_t i = 0; i < layer_sizes.size() - 1; ++i) {
+            for (size_t i = 0; i < layer_sizes.size()-1; ++i) {
                 int current_layer_size = layer_sizes[i];     // Number of neurons in the current layer
                 int next_layer_size = layer_sizes[i + 1];    // Number of neurons in the next layer
                 // Initialize weight matrix for the current -> next layer
@@ -76,12 +76,9 @@ class Network{
                 }
                 this->weights.push_back(weight_matrix); // Add the weight matrix for this layer connection
                 // Initialize bias vector for the next layer
-                std::vector<double> bias_vector(next_layer_size, 0.0); // Biases initialized to 0.0 for simplicity
+                std::vector<double> bias_vector(next_layer_size, 0.0); // A single vector of biases initialized to 0.0
                 this->biases.push_back(bias_vector); // Add biases for this layer
             }
-            // std::cout << this->get_weights()[0][0][0] << '\n';
-            // std::cout << '\n';
-
             this->visualize_weights();
         }
 
@@ -115,28 +112,35 @@ class Network{
             return t_matrix;
         }
 
-        // in this function we are going to propagate the values from the input layer to the output layer
-        //multiplying each value for the correspongind weight and the adding the bias 
-        //to finally call the activation function (relu) and repeat for the next layer
-        void forward(){
-            //possible approach?
-            //for each column of the weights matrix compute value*weight + bias, N1*w0,1+N2*w0,1+...+Nnw0,n + B (bias)
-            //then call RelU(val) on the corresponding neuron of the column n in the weight matrix (n=0, first neuron of current_layer +1)     
+       void forward() {
+            // For each layer, compute the weighted sum ((value * weight) + bias), then apply ReLU
 
-
-            for(int i = 0; i < this->weights.size(); i++){
+            for (int i = 1; i < this->weights.size(); i++) { // start from i=1 to avoid out-of-bounds access
+                std::vector<std::vector<double>> t_matrix = transpose(this->weights[i]);
+                
+                // Access the previous and next layer's neurons for efficiency
+                const auto& prev_layer_neurons = this->layers[i - 1]->get_neurons();
+                const auto& next_layer_neurons = this->layers[i]->get_neurons();
+                
                 // transpose to iterate directly into weights of neuron of the next layer
-                std::vector<std::vector<double>> t_matrix = transpose(this->weights[i]); 
-                for(int j = 0; j < t_matrix.size(); j++){
-                    for(int z = 0; z < t_matrix[j].size(); z++){
-                        std::cout << t_matrix[j][z] << " ";
+                for (int j = 0; j < t_matrix.size(); j++) {
+                    double total {0};
+                    for (int k = 0; k < t_matrix[j].size(); k++) {
+                        total += prev_layer_neurons[k]->get_value() * t_matrix[j][k]; // value * weight
                     }
-                    std::cout << '\n';
+                    total += this->biases[i][j];
+                    next_layer_neurons[j]->relu(total);
+                    std::cout << "Previous layer size: " << prev_layer_neurons.size() << '\n';
+                    std::cout << "Next layer size: " << next_layer_neurons.size() << '\n';
+                    std::cout << "Weight matrix size: " << t_matrix.size() << " x " << t_matrix[0].size() << '\n';
+
+                    std::cout << "Neuron " << j << " in layer " << i << ": " << total << " -> ReLU applied: " << next_layer_neurons[j]->get_value() << '\n';
                 }
+
                 std::cout << '\n';
             }
-
         }
+
 
         void backpropagation(){
 
