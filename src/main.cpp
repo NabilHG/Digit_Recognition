@@ -19,7 +19,8 @@ int main() {
     // std::cout << "Number of test images: " << dataset.test_images.size() << '\n';
     // std::cout << "sadasdasd";
 
-    Network a({5, 3, 2});
+    
+    Network a({14, 5, 2});
     a.forward();
 
 

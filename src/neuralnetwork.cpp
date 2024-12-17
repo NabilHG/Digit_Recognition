@@ -68,6 +68,7 @@ class Network{
                 int current_layer_size = layer_sizes[i];     // Number of neurons in the current layer
                 int next_layer_size = layer_sizes[i + 1];    // Number of neurons in the next layer
                 // Initialize weight matrix for the current -> next layer
+                std::cout << "current_layer_size: " << current_layer_size << ", next_layer_size: " << next_layer_size << '\n';
                 std::vector<std::vector<double>> weight_matrix(current_layer_size, std::vector<double>(next_layer_size));
                 for (auto& row : weight_matrix) {
                     for (auto& weight : row) {
@@ -101,6 +102,7 @@ class Network{
         std::vector<std::vector<double>> transpose(const std::vector<std::vector<double>>& matrix) {
             int rows = matrix.size();
             int cols = matrix[0].size();
+            std::cout << "n rows: " << rows << ", n cols: " << cols << '\n';
             // create the transposed matrix with dimensions cols x rows
             std::vector<std::vector<double>> t_matrix(cols, std::vector<double>(rows));
 
@@ -109,32 +111,33 @@ class Network{
                     t_matrix[j][i] = matrix[i][j];
                 }
             }
+            std::cout << "t_matrix, rows: " << t_matrix.size() << ", cols: " << t_matrix[0].size() << '\n'; 
             return t_matrix;
         }
 
        void forward() {
             // For each layer, compute the weighted sum ((value * weight) + bias), then apply ReLU
 
-            for (int i = 1; i < this->weights.size(); i++) { // start from i=1 to avoid out-of-bounds access
-                std::vector<std::vector<double>> t_matrix = transpose(this->weights[i]);
+            for (int i = 1; i < this->weights.size() + 1; i++) { // start from i=1 to avoid out-of-bounds access
+                std::vector<std::vector<double>> t_matrix = transpose(this->weights[i - 1]);
                 
                 // Access the previous and next layer's neurons for efficiency
                 const auto& prev_layer_neurons = this->layers[i - 1]->get_neurons();
                 const auto& next_layer_neurons = this->layers[i]->get_neurons();
-                
-                // transpose to iterate directly into weights of neuron of the next layer
+                std::cout << "Weight matrix size: " << t_matrix.size() << " x " << t_matrix[0].size() << '\n';
+            
+                // Ensure bounds check when accessing prev_layer_neurons and weights
                 for (int j = 0; j < t_matrix.size(); j++) {
                     double total {0};
                     for (int k = 0; k < t_matrix[j].size(); k++) {
-                        total += prev_layer_neurons[k]->get_value() * t_matrix[j][k]; // value * weight
+                        if (k < prev_layer_neurons.size()) {
+                            total += prev_layer_neurons[k]->get_value() * t_matrix[j][k]; // value * weight
+                        }
                     }
-                    total += this->biases[i][j];
+                    total += this->biases[i - 1][j];
                     next_layer_neurons[j]->relu(total);
-                    std::cout << "Previous layer size: " << prev_layer_neurons.size() << '\n';
-                    std::cout << "Next layer size: " << next_layer_neurons.size() << '\n';
-                    std::cout << "Weight matrix size: " << t_matrix.size() << " x " << t_matrix[0].size() << '\n';
 
-                    std::cout << "Neuron " << j << " in layer " << i << ": " << total << " -> ReLU applied: " << next_layer_neurons[j]->get_value() << '\n';
+                    std::cout << "Neuron " << j + 1 << " in layer " << i << ": " << total << " -> ReLU applied: " << next_layer_neurons[j]->get_value() << '\n';
                 }
 
                 std::cout << '\n';
