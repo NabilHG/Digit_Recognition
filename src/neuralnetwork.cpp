@@ -1,7 +1,9 @@
+#define _USE_MATH_DEFINES 
 #include <iostream>
 #include <vector>
 #include <memory>
 #include <ctime>   
+#include <cmath>
 
 class Neuron{
     private:
@@ -28,6 +30,10 @@ class Neuron{
         double get_value(){
             return this->value;
         }
+
+        void set_value(double val){
+            this->value = val;
+        }
 };
 
 class Layer{
@@ -44,6 +50,7 @@ class Layer{
         std::vector<std::shared_ptr<Neuron>> get_neurons(){
             return this->neurons;
         }
+
 };
 
 class Network{
@@ -142,11 +149,37 @@ class Network{
 
                 std::cout << '\n';
             }
+
+            //apply softmax
+            this->softmax(this->layers[this->layers.size()-1]); 
         }
 
 
         void backpropagation(){
 
+        }
+
+        // apply softmax to last layer to convert logits into probability. Cross Entropy require it
+        void softmax(std::shared_ptr<Layer> &layer){
+            std::cout << layer->get_neurons()[0]->get_value() << '\n';
+
+            // Lambda function to compute the sum of all exponentiated values on this layer (e^value)
+            auto total_e_values = [](std::shared_ptr<Layer>& layer) -> double {
+                double total {0};
+                for (const auto& neuron : layer->get_neurons()) {
+                    total += exp(neuron->get_value());  // Use exp() from cmath to compute e^value
+                }
+                return total;
+            };
+
+            // Compute the sum of e^values
+            double sum_e_values = total_e_values(layer);
+
+            // Apply softmax to each neuron
+            for (auto& neuron : layer->get_neurons()) {
+                double exponentiated_value = exp(neuron->get_value());  // Exponentiate once
+                neuron->set_value(exponentiated_value / sum_e_values);  // Normalize by sum of e^values
+            }
         }
 
         void update(){
