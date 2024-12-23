@@ -162,8 +162,8 @@ class Network{
         }
 
         double cross_entropy(int input, std::shared_ptr<Layer>& layer){
-            std::cout << "Hello cross entropy " << input << '\n';
-            return 0.0;
+            double epsilon = 1e-15; // adding a very small number just for when value 0 not having problems
+            return log(layer->get_neurons()[input]->get_value() + epsilon) * (-1);
         }
 
         // apply softmax to last layer to convert logits into probability. Cross-Entropy require it
