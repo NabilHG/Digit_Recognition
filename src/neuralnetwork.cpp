@@ -87,7 +87,7 @@ class Network{
                 std::vector<double> bias_vector(next_layer_size, 0.0); // A single vector of biases initialized to 0.0
                 this->biases.push_back(bias_vector); // Add biases for this layer
             }
-            this->visualize_weights();
+            // this->visualize_weights();
         }
 
         std::vector<std::vector<std::vector<double>>> get_weights(){
@@ -122,9 +122,10 @@ class Network{
             return t_matrix;
         }
 
-       void forward() {
-            // For each layer, compute the weighted sum ((value * weight) + bias), then apply ReLU
-
+       void forward(std::vector<unsigned char>& input) {
+            //init first layer values
+            std::cout << "SIZE: " << input.size() << '\n';
+            // for each layer, compute the weighted sum ((value * weight) + bias), then apply ReLU
             for (int i = 1; i < this->weights.size() + 1; i++) { // start from i=1 to avoid out-of-bounds access
                 std::vector<std::vector<double>> t_matrix = transpose(this->weights[i - 1]);
                 
@@ -152,6 +153,7 @@ class Network{
 
             //apply softmax
             this->softmax(this->layers[this->layers.size()-1]); 
+
         }
 
 
@@ -159,26 +161,30 @@ class Network{
 
         }
 
-        // apply softmax to last layer to convert logits into probability. Cross Entropy require it
-        void softmax(std::shared_ptr<Layer> &layer){
+        double cross_entropy(int input, std::shared_ptr<Layer>& layer){
+            std::cout << "Hello cross entropy " << input << '\n';
+            return 0.0;
+        }
+
+        // apply softmax to last layer to convert logits into probability. Cross-Entropy require it
+        void softmax(std::shared_ptr<Layer>& layer){
             std::cout << layer->get_neurons()[0]->get_value() << '\n';
 
-            // Lambda function to compute the sum of all exponentiated values on this layer (e^value)
+            // lambda function to compute the sum of all exponentiated values on this layer (e^value)
             auto total_e_values = [](std::shared_ptr<Layer>& layer) -> double {
                 double total {0};
                 for (const auto& neuron : layer->get_neurons()) {
-                    total += exp(neuron->get_value());  // Use exp() from cmath to compute e^value
+                    total += exp(neuron->get_value());  
                 }
                 return total;
             };
 
-            // Compute the sum of e^values
             double sum_e_values = total_e_values(layer);
 
-            // Apply softmax to each neuron
+            // apply softmax to each neuron
             for (auto& neuron : layer->get_neurons()) {
-                double exponentiated_value = exp(neuron->get_value());  // Exponentiate once
-                neuron->set_value(exponentiated_value / sum_e_values);  // Normalize by sum of e^values
+                double exponentiated_value = exp(neuron->get_value());  
+                neuron->set_value(exponentiated_value / sum_e_values);  // normalize by sum of e^values
             }
         }
 
@@ -186,4 +192,8 @@ class Network{
 
         }
         
+
+        std::vector<std::shared_ptr<Layer>> get_layers(){
+            return this->layers;
+        }
 };
