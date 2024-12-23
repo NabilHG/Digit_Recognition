@@ -158,7 +158,12 @@ class Network{
 
 
         void backpropagation(){
-
+            '''
+            TODO
+                - Compute gradients in the ouput layer (output softmax - k, k=1 if correct guess, k=0 if not)
+                - Backpropagate, compute gradients in previous layer (except input layer). For each neuron, sum of all weigth * gradient * derivate ReLu
+                - Update weight and biases (update function)
+            '''
         }
 
         double cross_entropy(int input, std::shared_ptr<Layer>& layer){
