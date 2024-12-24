@@ -16,12 +16,20 @@ int main() {
     mnist::normalize_dataset(dataset);
 
     // std::cout << "Number of training images: " << dataset.training_images.size() << '\n';
-    std::cout << static_cast<int>(dataset.training_labels[0]) << '\n';
+    // std::cout << static_cast<int>(dataset.training_labels[0]) << '\n';
+
+
+
+    
     
     Network a({10, 5, 2});
     // a.forward(dataset.training_images[0]);
-    
-    loss = a.cross_entropy(static_cast<int>(dataset.training_labels[10]), a.get_layers()[a.get_layers().size() - 1]); // input: label, last layer
+    a.backpropagation(static_cast<int>(dataset.training_labels[10]), a.get_layers()[a.get_layers().size() - 1]);
+
+
+
+    // loss = a.cross_entropy(static_cast<int>(dataset.training_labels[10]), a.get_layers()[a.get_layers().size() - 1]); // input: label, last layer
+
 
 
     // a.forward();

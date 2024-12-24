@@ -34,6 +34,10 @@ class Neuron{
         void set_value(double val){
             this->value = val;
         }
+
+        void set_gradient(double grad){
+            this->gradient = grad;
+        }
 };
 
 class Layer{
@@ -157,13 +161,25 @@ class Network{
         }
 
 
-        void backpropagation(){
-            '''
-            TODO
-                - Compute gradients in the ouput layer (output softmax - k, k=1 if correct guess, k=0 if not)
-                - Backpropagate, compute gradients in previous layer (except input layer). For each neuron, sum of all weigth * gradient * derivate ReLu
-                - Update weight and biases (update function)
-            '''
+        void backpropagation(int input, std::shared_ptr<Layer>& layer){
+            // '''
+            // TODO
+            //     - Compute gradients in the ouput layer (output softmax - k, k=1 if correct guess, k=0 if not) *check*
+            //     - Backpropagate, compute gradients in previous layer (except input layer). For each neuron, sum of all weigth * gradient * derivate ReLu
+            //     - Update weight and biases (update function)
+            // '''
+            // double max_value = max_element(layer.get_neurons()[neuron].get_value().begin(), layer.get_neurons()v.get_value().end());
+
+            //computing gradients in the output layer
+            int index = 0;
+            for (auto& neuron : layer->get_neurons()) {
+                std::cout << neuron->get_value() << '\n';
+                if (index == input) {
+                    neuron->set_gradient(neuron->get_value() - 1);
+                }
+                ++index;
+            }
+
         }
 
         double cross_entropy(int input, std::shared_ptr<Layer>& layer){
