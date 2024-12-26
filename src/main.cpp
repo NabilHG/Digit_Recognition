@@ -10,7 +10,7 @@ using namespace std;
 
 int main() {
 
-    auto dataset = mnist::read_dataset<std::vector, std::vector, uint8_t, uint8_t>("/home/nbl/Digit_Recognition/data");
+    auto dataset = mnist::read_dataset<std::vector, std::vector, uint8_t, uint8_t>("data");
     
     // // // Normalize all the images in the data set to a zero mean and unit variance.
     mnist::normalize_dataset(dataset);
@@ -20,11 +20,13 @@ int main() {
 
 
 
-    
+
+
     
     Network a({10, 5, 2});
     // a.forward(dataset.training_images[0]);
     a.backpropagation(static_cast<int>(dataset.training_labels[10]), a.get_layers()[a.get_layers().size() - 1]);
+
 
 
 

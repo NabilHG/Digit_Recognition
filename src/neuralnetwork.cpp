@@ -23,8 +23,8 @@ class Neuron{
         }
 
         // derivate of Relu for backprop
-        double relu_derivative(){
-            return (value > 0.0) ? 1.0 : 0.0;
+        double relu_derivative(double val){
+            return (val > 0.0) ? 1.0 : 0.0;
         }
 
         double get_value(){
@@ -33,6 +33,10 @@ class Neuron{
 
         void set_value(double val){
             this->value = val;
+        }
+
+        double get_gradient(){
+            return this->gradient;
         }
 
         void set_gradient(double grad){
@@ -162,13 +166,7 @@ class Network{
 
 
         void backpropagation(int input, std::shared_ptr<Layer>& layer){
-            // '''
-            // TODO
-            //     - Compute gradients in the ouput layer (output softmax - k, k=1 if correct guess, k=0 if not) *check*
-            //     - Backpropagate, compute gradients in previous layer (except input layer). For each neuron, sum of all weigth * gradient * derivate ReLu
-            //     - Update weight and biases (update function)
-            // '''
-            // double max_value = max_element(layer.get_neurons()[neuron].get_value().begin(), layer.get_neurons()v.get_value().end());
+            double learning_rate = 0.001;
 
             //computing gradients in the output layer
             int index = 0;
@@ -179,6 +177,35 @@ class Network{
                 }
                 ++index;
             }
+
+            // backpropagate, compute gradients in previous layer (except input layer)  
+            // for each neuron, sum of all weigth * gradient * derivate ReLu(pre-activation value)
+            // also update weights and biases
+            for (int i = this->layers.size() - 2; i >= 0; --i) {  // Start from the second-to-last layer
+                const auto& current_layer_neurons = this->layers[i + 1]->get_neurons();
+                const auto& prev_layer_neurons = this->layers[i]->get_neurons();
+                auto& weights_matrix = this->weights[i];
+                auto& biases = this->biases[i];
+
+                for (int j = 0; j < prev_layer_neurons.size(); ++j) {
+                    double gradient_sum = 0.0;
+
+                    // sum gradients from the next layer
+                    for (int k = 0; k < current_layer_neurons.size(); ++k) {
+                        gradient_sum += current_layer_neurons[k]->get_gradient() * weights_matrix[k][j];
+                        //updating weight and biases
+                        weights_matrix[j][k] = weights_matrix[j][k] - learning_rate * current_layer_neurons[k]->get_gradient() * prev_layer_neurons[j]->get_value();
+                        biases[k] = biases[k] - learning_rate * current_layer_neurons[k]->get_gradient();
+                    }
+
+                    // multiply by ReLU derivative of the activation
+                    gradient_sum *= prev_layer_neurons[j]->relu_derivative(prev_layer_neurons[j]->get_value());
+
+                    prev_layer_neurons[j]->set_gradient(gradient_sum);
+                }
+            }
+
+            std::cout << "no problems" << '\n';
 
         }
 
@@ -208,11 +235,6 @@ class Network{
                 neuron->set_value(exponentiated_value / sum_e_values);  // normalize by sum of e^values
             }
         }
-
-        void update(){
-
-        }
-        
 
         std::vector<std::shared_ptr<Layer>> get_layers(){
             return this->layers;
