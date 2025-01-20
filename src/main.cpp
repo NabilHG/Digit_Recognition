@@ -5,6 +5,11 @@
 #include "../include/mnist_utils.hpp"
 #include "../src/neuralnetwork.cpp"  // Directly include the implementation file (not ideal but functional).
 #include <typeinfo>
+#include <algorithm>
+#include <random>
+
+
+
 using namespace std;
 
 void validate(Network& network, const std::vector<std::vector<uint8_t>>& test_images, const std::vector<uint8_t>& test_labels) {
@@ -37,14 +42,19 @@ void validate(Network& network, const std::vector<std::vector<uint8_t>>& test_im
     std::cout << "Validation Accuracy: " << accuracy * 100 << "%\n";
 }
 
+void shuffle_dataset(std::vector<std::vector<uint8_t>>& images, std::vector<uint8_t>& labels) {
+    auto rng = std::default_random_engine{};
+    std::shuffle(images.begin(), images.end(), rng);
+    std::shuffle(labels.begin(), labels.end(), rng);
+}
 
 
 int main() {
-
+    
     auto dataset = mnist::read_dataset<std::vector, std::vector, uint8_t, uint8_t>("data");
     
     // normalize all the images in the data set to a zero mean and unit variance.
-    mnist::normalize_dataset(dataset);
+    // mnist::normalize_dataset(dataset);
 
     Network network({784, 128, 10});
 
@@ -53,20 +63,31 @@ int main() {
     int index = 0;
     double loss = 0;
     for(int i = 1; i <= epochs; i++){
-        for(int j = 0; j < batch_size; j++){
+        shuffle_dataset(dataset.training_images, dataset.training_labels);
+
+        for(int j = 0; j < batch_size && index < dataset.training_images.size(); ++j){
             //iterate the 60000 imagen in groups of 128
-            for(int k = 0; k < 128; k++){
+            for(int j = 0; j < batch_size && index < dataset.training_images.size(); ++j){
                 network.forward(dataset.training_images[index]);
-                network.backpropagation(static_cast<int>(dataset.training_labels[index]), network.get_layers()[network.get_layers().size() - 1]);
                 loss += network.cross_entropy(static_cast<int>(dataset.training_labels[index]), network.get_layers()[network.get_layers().size() - 1]); // input: label, last layer
+                network.backpropagation(static_cast<int>(dataset.training_labels[index]), network.get_layers()[network.get_layers().size() - 1]);
                 index++;
             }
         }
         index = 0;
-        std::cout << "Epoch " << i << "/100\n";
+        std::cout << "Epoch " << i << "/" << epochs << '\n';
         validate(network, dataset.test_images, dataset.test_labels);
+
+        if (i == epochs) { 
+            network.save_model("trained_model.txt");
+            std::cout << "Model saved to trained_model.txt\n";
+        }
+
     }
 
+    // reload the model for further evaluation
+    // network.load_model("trained_model.txt");
+    // validate(network, dataset.test_images, dataset.test_labels);
     
     return 0;
 }
