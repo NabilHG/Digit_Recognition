@@ -5,6 +5,7 @@
 #include <ctime>   
 #include <cmath>
 #include <fstream>
+#include <random>
 
 class Neuron{
     private:
@@ -16,19 +17,17 @@ class Neuron{
         Neuron(double val = 0.0){
             this->value = val;
             this->gradient = 0;
-        }   
-    
-        // ReLu (Rectified Linear Unit) for forward pass
+        }
+
         void relu(double &val) {
-            this->value = std::max(0.1, val);
+            this->value = std::max(0.0, val);
         }
 
         // derivate of Relu for backprop
         double relu_derivative(double val){
-            return (val >= 0.0) ? 1.0 : 0.1;
+            return (val >= 0.0) ? 1.0 : 0.0;
         }
         
-
         double get_value(){
             return this->value;
         }
@@ -57,54 +56,62 @@ class Layer{
             }    
         }
 
-        std::vector<std::shared_ptr<Neuron>> get_neurons(){
+        std::vector<std::shared_ptr<Neuron>>& get_neurons(){
             return this->neurons;
         }
 
 };
 
-class Network{
+class Network {
     private:
         std::vector<std::shared_ptr<Layer>> layers;
-        std::vector<std::vector<std::vector<double>>> weights; // matrix form
-        std::vector<std::vector<double>> biases; // matrix form
+        std::vector<std::vector<std::vector<double>>> weights;  
+        std::vector<std::vector<double>> biases;  
+
+        std::vector<std::vector<std::vector<double>>> velocity_weights;
+        std::vector<std::vector<double>> velocity_biases;  
+
+        double momentum = 0.4; 
+        double learning_rate = 0.0001; 
 
     public:
         Network(const std::vector<int>& layer_sizes) {
-            // Crear las capas
             for (int size : layer_sizes) {
-                this->layers.push_back(std::make_shared<Layer>(size));
+                layers.push_back(std::make_shared<Layer>(size));
             }
 
-            // Inicializar pesos y sesgos
+            // init weights, biases and momentum
             srand(static_cast<unsigned>(time(0)));
-
             for (size_t i = 0; i < layer_sizes.size() - 1; ++i) {
                 int current_layer_size = layer_sizes[i];
                 int next_layer_size = layer_sizes[i + 1];
 
-                // Matriz de pesos para la capa actual -> capa siguiente
-                std::vector<std::vector<double>> weight_matrix(current_layer_size, std::vector<double>(next_layer_size));
-
                 // He Initialization
-                double stddev = std::sqrt(2.0 / current_layer_size); // Factor de escala basado en fan_in
+                double stddev = std::sqrt(2.0 / current_layer_size);
+                std::vector<std::vector<double>> weight_matrix(current_layer_size, std::vector<double>(next_layer_size));
+                std::vector<std::vector<double>> velocity_w(current_layer_size, std::vector<double>(next_layer_size, 0.0));
 
                 for (auto& row : weight_matrix) {
                     for (auto& weight : row) {
-                        // Inicialización normal con media 0 y desviación estándar stddev
-                        weight = stddev * static_cast<double>(rand()) / RAND_MAX * 2.0 - stddev; // Escalar a rango [-stddev, stddev]
+                        weight = stddev * (static_cast<double>(rand()) / RAND_MAX * 2.0 - 1.0);
                     }
                 }
-                this->weights.push_back(weight_matrix);
+                weights.push_back(weight_matrix);
+                velocity_weights.push_back(velocity_w);
 
-                // Sesgos inicializados a 0 (opcional: pequeños valores aleatorios)
-                std::vector<double> bias_vector(next_layer_size, 0.0); // Puedes usar stddev * (rand() / RAND_MAX) si prefieres valores aleatorios pequeños
-                this->biases.push_back(bias_vector);
+                
+                biases.push_back(std::vector<double>(next_layer_size, 0.0));
+                velocity_biases.push_back(std::vector<double>(next_layer_size, 0.0));
             }
         }
 
+
         std::vector<std::vector<std::vector<double>>> get_weights(){
             return this->weights;
+        }
+
+        std::vector<std::vector<double>> get_biases(){
+            return this->biases;
         }
 
         void visualize_weights(){
@@ -122,7 +129,6 @@ class Network{
         std::vector<std::vector<double>> transpose(const std::vector<std::vector<double>>& matrix) {
             int rows = matrix.size();
             int cols = matrix[0].size();
-            // std::cout << "n rows: " << rows << ", n cols: " << cols << '\n';
             // create the transposed matrix with dimensions cols x rows
             std::vector<std::vector<double>> t_matrix(cols, std::vector<double>(rows));
 
@@ -131,139 +137,116 @@ class Network{
                     t_matrix[j][i] = matrix[i][j];
                 }
             }
-            // std::cout << "t_matrix, rows: " << t_matrix.size() << ", cols: " << t_matrix[0].size() << '\n'; 
+
             return t_matrix;
         }
 
-       void forward(const std::vector<uint8_t>& input) {
-            //init first layer values
-            // std::cout << "SIZE: " << input.size() << '\n';
-            // for each layer, compute the weighted sum ((value * weight) + bias), then apply ReLU
+        void forward(const std::vector<float>& input) {
+            // feed values into first layer
             const auto& first_layer_neurons = this->layers[0]->get_neurons();
             for (size_t i = 0; i < input.size(); ++i) {
-                first_layer_neurons[i]->set_value(static_cast<double>(input[i]));  // Set input value to the first layer's neurons
-                // std::cout << "Neuron " << i << " value: " << first_layer_neurons[i]->get_value() << '\n';
-
+                first_layer_neurons[i]->set_value(static_cast<double>(input[i]));
             }
-            
-            for (int i = 1; i < this->weights.size() + 1; i++) { // start from i=1 to avoid out-of-bounds access
+
+            // forward pass
+            for (int i = 1; i < this->weights.size() + 1; i++) { 
                 std::vector<std::vector<double>> t_matrix = transpose(this->weights[i - 1]);
-                
-                // Access the previous and next layer's neurons for efficiency
+
                 const auto& prev_layer_neurons = this->layers[i - 1]->get_neurons();
                 const auto& next_layer_neurons = this->layers[i]->get_neurons();
-                // std::cout << "Weight matrix size: " << t_matrix.size() << " x " << t_matrix[0].size() << '\n';
-            
-                // Ensure bounds check when accessing prev_layer_neurons and weights
+
                 for (int j = 0; j < t_matrix.size(); j++) {
-                    double total {0};
+                    double total = 0;
                     for (int k = 0; k < t_matrix[j].size(); k++) {
                         if (k < prev_layer_neurons.size()) {
-                            // std::cout << "total antes de calculo: " << total << '\n';
-                            // std::cout << "valor por weight " << prev_layer_neurons[k]->get_value() << " * " << t_matrix[j][k] << '\n';
-                            // std::cout << "weight " << t_matrix[j][k] << '\n';
-                            total += prev_layer_neurons[k]->get_value() * t_matrix[j][k]; // value * weight
-                            // std::cout << "total despues del calculo: " << total << '\n';
+                            total += prev_layer_neurons[k]->get_value() * t_matrix[j][k];
                         }
                     }
                     total += this->biases[i - 1][j];
-                    // std::cout << "total antes de bias: " << total << " bias: " << this->biases[i - 1][j] << '\n';
 
-                    // std::cout << "bias " << this->biases[i - 1][j] << '\n';
-                    // std::cout << "valor neurona antes de aplicar relu " << next_layer_neurons[j]->get_value() << '\n';
-                    next_layer_neurons[j]->relu(total);
-                    // std::cout << "valor neurona despues de aplicar relu " << next_layer_neurons[j]->get_value() << '\n';
+                    if (i < this->weights.size()) {
+                        next_layer_neurons[j]->relu(total);
+                    } else {
+                        next_layer_neurons[j]->set_value(total); 
+                    }
                 }
-
-                // std::cout << '\n';
             }
 
-            //apply softmax
-            this->softmax(this->layers[this->layers.size()-1]); 
+            // softmax last layer
+            this->softmax(this->layers[this->layers.size() - 1]);
+        }
+        
+        // apply softmax to last layer to convert logits into probability. Cross-Entropy require it
+        void softmax(std::shared_ptr<Layer>& layer) {
+            double max_val = -std::numeric_limits<double>::infinity();
+            for (const auto& neuron : layer->get_neurons()) {
+                if (neuron->get_value() > max_val) {
+                    max_val = neuron->get_value();
+                }
+            }
 
+            double sum_e_values = 0.0;
+            for (auto& neuron : layer->get_neurons()) {
+                neuron->set_value(exp(neuron->get_value() - max_val));
+                sum_e_values += neuron->get_value();
+            }
+
+            for (auto& neuron : layer->get_neurons()) {
+                neuron->set_value(neuron->get_value() / sum_e_values);
+            }
         }
 
-
-        void backpropagation(int input, std::shared_ptr<Layer>& layer){
-            double learning_rate = 0.01;
-
-            //computing gradients in the output layer
+        void backpropagation(int input, std::shared_ptr<Layer>& output_layer) {
+            // gradients last layer
             int index = 0;
-            for (auto& neuron : layer->get_neurons()) {  
-                if (index == input) {
-                    // Calculate and set the gradient for the correct class neuron
-                    double gradient = neuron->get_value() - 1;
-                    neuron->set_gradient(gradient);
-                } else {
-                    double gradient = neuron->get_value() - 0;
-                    neuron->set_gradient(gradient);
-                }
+            for (auto& neuron : output_layer->get_neurons()) {
+                neuron->set_gradient((index == input) ? (neuron->get_value() - 1) : neuron->get_value());
                 ++index;
             }
 
-            // backpropagate, compute gradients in previous layer (except input layer)  
-            // for each neuron, sum of all weigth * gradient * derivate ReLu(pre-activation value)
-            // also update weights and biases
-            for (int i = this->layers.size() - 2; i >= 0; --i) {  // Start from the second-to-last layer
-                const auto& current_layer_neurons = this->layers[i + 1]->get_neurons();
-                const auto& prev_layer_neurons = this->layers[i]->get_neurons();
-                auto& weights_matrix = this->weights[i];
-                auto& biases = this->biases[i];
-                // std::cout << this->biases[0].size() << '\n';
-                for (int j = 0; j < prev_layer_neurons.size(); ++j) {
-                    double gradient_sum = 0.0;
-                    double gradient  = 0.0;
-                    // sum gradients from the next layer
-                    for (int k = 0; k < current_layer_neurons.size(); ++k) {
-                        gradient_sum += current_layer_neurons[k]->get_gradient() * weights_matrix[j][k];
-                        //updating weight and biases
-                        weights_matrix[j][k] = weights_matrix[j][k] - learning_rate * (current_layer_neurons[k]->get_gradient() * prev_layer_neurons[j]->get_value());
-                        biases[k] = biases[k] - learning_rate * current_layer_neurons[k]->get_gradient();
+            // backpropagation
+            for (int i = layers.size() - 2; i >= 0; --i) {
+                auto& current_layer = layers[i + 1]->get_neurons();
+                auto& prev_layer = layers[i]->get_neurons();
+                auto& weights_matrix = weights[i];
+                auto& biases_vector = biases[i];
+                auto& velocity_w = velocity_weights[i];
+                auto& velocity_b = velocity_biases[i];
 
+                for (size_t j = 0; j < prev_layer.size(); ++j) {
+                    double gradient_sum = 0.0;
+                    //computing gradient for neuron j
+                    for (size_t k = 0; k < current_layer.size(); ++k) {
+                        double gradient = current_layer[k]->get_gradient() * prev_layer[j]->get_value();
+                        
+                        velocity_w[j][k] = momentum * velocity_w[j][k] - learning_rate * gradient;
+                        gradient_sum += current_layer[k]->get_gradient() * weights_matrix[j][k];
                     }
 
-                    // multiply by ReLU derivative of the activation
-                    // std::cout << "gradient sum before relu derivative" << gradient_sum << '\n';
-                    gradient = gradient_sum * prev_layer_neurons[j]->relu_derivative(prev_layer_neurons[j]->get_value());
-                    // std::cout << "gradient after relu derivative" << gradient_sum << '\n';
-                    // std::cout << "gradient before setting new one" << prev_layer_neurons[j]->get_gradient() << '\n';
-                    prev_layer_neurons[j]->set_gradient(gradient);
-                    // std::cout << "gradient after setting new one" << prev_layer_neurons[j]->get_gradient() << '\n';
+                    for (size_t k = 0; k < current_layer.size(); ++k) {
+                        weights_matrix[j][k] += velocity_w[j][k];
+                    }
+                    //setting gradient for neuron j
+                    prev_layer[j]->set_gradient(gradient_sum * prev_layer[j]->relu_derivative(prev_layer[j]->get_value()));
+                }
 
+
+                for (size_t k = 0; k < current_layer.size(); ++k) {
+                    double gradient = current_layer[k]->get_gradient();
+
+                    // momentum into biases
+                    velocity_b[k] = momentum * velocity_b[k] - learning_rate * gradient;
+                    biases_vector[k] += velocity_b[k];
                 }
             }
-
-            // std::cout << "no problems" << '\n';
-
         }
 
-        double cross_entropy(int input, std::shared_ptr<Layer>& layer){
-            double epsilon = 1e-15; // adding a very small number just for when value 0 not having problems
-            return log(layer->get_neurons()[input]->get_value() + epsilon) * (-1); // ln
+        double cross_entropy(int target, std::shared_ptr<Layer>& layer) {
+            double epsilon = 1e-15; 
+            double predicted = layer->get_neurons()[target]->get_value();
+            return -log(std::max(predicted, epsilon));
         }
-
-        // apply softmax to last layer to convert logits into probability. Cross-Entropy require it
-        void softmax(std::shared_ptr<Layer>& layer){
-            // std::cout << layer->get_neurons()[0]->get_value() << '\n';
-            // lambda function to compute the sum of all exponentiated values on this layer (e^value)
-            auto total_e_values = [](std::shared_ptr<Layer>& layer) -> double {
-                double total {0};
-                
-                for (const auto& neuron : layer->get_neurons()) {
-                    total += exp(neuron->get_value());  
-                }
-                return total;
-            };
-
-            double sum_e_values = total_e_values(layer);
-            // apply softmax to each neuron
-            for (auto& neuron : layer->get_neurons()) {
-                // std::cout << "valor de la neurona: " << neuron->get_value();
-                double exponentiated_value = exp(neuron->get_value());  
-                neuron->set_value(exponentiated_value / sum_e_values);  // normalize by sum of e^values
-            }
-        }
-
+  
         void save_model(const std::string& filename) {
             std::ofstream file(filename, std::ios::out);
             if (!file.is_open()) {

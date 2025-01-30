@@ -10,10 +10,10 @@ Instead of using pre-built machine learning libraries, this project was develope
 ## Architecture
 
 > Input layer: **784 neurons**  
-> Hidden layer: **128 neurons**  
+> Hidden layer: **30 neurons**  
+> Hidden layer: **30 neurons**  
 > Output layer: **10 neurons**
 
-<img src="img/arch_NN.png" width="600" height="400">
 
 ### Input Layer
 The MNIST database consists of 60,000 training images and 10,000 test images, each 28x28 pixels in size.  
@@ -23,8 +23,8 @@ Pixel values are normalized:
 - **1** for painted pixels.  
 - **0** for unpainted pixels.  
 
-### Hidden Layer
-The hidden layer contains **128 neurons**, chosen as a balance between performance and computational efficiency.  
+### Hidden Layers
+The hidden layer contains **30 neurons**, chosen as a balance between performance and computational efficiency.  
 This number is sufficient to capture patterns in the MNIST dataset without overfitting or excessively slowing down the training process.
 
 ### Output Layer
@@ -32,7 +32,7 @@ The output layer contains **10 neurons**, one for each digit (0–9). Each neuro
 
 ## Training Cycle
 
-<img src="img/ann_lifecycle.png" width="500" height="500">
+<img src="img/ann_lifecycle.png">
 
 The training process of a neural network follows a basic cycle composed of four key stages:
 
@@ -53,6 +53,12 @@ The training process of a neural network follows a basic cycle composed of four 
 
 4. **Update Weights and Biases**  
    The weights and biases are updated using the gradients computed during backpropagation.  
-   An optimization algorithm, such as Gradient Descent, adjusts the parameters in small steps (defined by the learning rate) to minimize the error.  
+   An optimization algorithm, such as Stochastic Gradient Descent, adjusts the parameters in small steps (defined by the learning rate) to minimize the error. Also I sed momentum, to avoid local minima.
 
 This cycle is repeated over multiple iterations (*epochs*) across the dataset until the network achieves satisfactory performance.
+
+## Performance
+
+After a quick training, the model achieves more than 90% of accuracy. 
+
+<img src="img/imageTrain.png">
